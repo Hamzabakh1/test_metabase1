@@ -1,0 +1,5 @@
+metabase.jar
+__pycache__/
+*.pyc
+*.pyo
+*.pyd

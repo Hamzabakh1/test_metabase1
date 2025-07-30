@@ -1,0 +1,54 @@
+name: Metabase Serialization CI
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+env:
+  MB_VERSION: '1.55.9'
+  MB_HOST: 'https://<TON_APP>.up.railway.app'
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          curl -sSL -o metabase.jar \
+            https://downloads.metabase.com/enterprise/v${{ env.MB_VERSION }}/metabase.jar
+      - name: Export Metabase
+        env:
+          MB_USER: ${{ secrets.MB_USER }}
+          MB_PASS: ${{ secrets.MB_PASS }}
+        run: |
+          java --add-opens java.base/java.nio=ALL-UNNAMED \
+            -jar metabase.jar export ./metabase_yaml \
+            --host $MB_HOST \
+            --username $MB_USER \
+            --password $MB_PASS \
+            --collection 2,3 \
+            --no-data-model --no-settings
+      - run: |
+          git config user.name github-actions
+          git config user.email actions@github.com
+          git add metabase_yaml
+          git commit -m "Auto‑export" || echo "No changes"
+          git push origin main
+
+  import_to_staging:
+    needs: export
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          curl -sSL -o metabase.jar \
+            https://downloads.metabase.com/enterprise/v${{ env.MB_VERSION }}/metabase.jar
+      - name: Import vers staging
+        env:
+          STG_HOST: 'https://<STAGING_APP>.up.railway.app'
+          STG_USER: ${{ secrets.STG_USER }}
+          STG_PASS: ${{ secrets.STG_PASS }}
+        run: |
+          java --add-opens java.base/java.nio=ALL-UNNAMED \
+            -jar metabase.jar import ./metabase_yaml \
+            --host $STG_HOST \
+            --username $STG_USER \
+            --password $STG_PASS
